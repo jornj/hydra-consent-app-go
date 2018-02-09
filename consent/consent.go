@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"github.com/ory/hydra/sdk/go/hydra/swagger"
 	"github.com/pkg/errors"
 	"github.com/urfave/negroni"
-	"golang.org/x/oauth2"
 )
 
 // This store will be used to save user authentication
@@ -35,8 +33,10 @@ func main() {
 
 	// Initialize the hydra SDK. The defaults work if you started hydra as described in the README.md
 	client, err = hydra.NewSDK(&hydra.Configuration{
-		ClientID:     env.Getenv("HYDRA_CLIENT_ID", "demo"),
-		ClientSecret: env.Getenv("HYDRA_CLIENT_SECRET", "demo"),
+		// ClientID:     env.Getenv("HYDRA_CLIENT_ID", "demo"),
+		// ClientSecret: env.Getenv("HYDRA_CLIENT_SECRET", "demo"),
+		ClientID:     env.Getenv("HYDRA_CLIENT_ID", "consent-app"),
+		ClientSecret: env.Getenv("HYDRA_CLIENT_SECRET", "consent-secret"),
 		EndpointURL:  env.Getenv("HYDRA_CLUSTER_URL", "http://localhost:4444"),
 		Scopes:       []string{"hydra.consent"},
 	})
@@ -44,12 +44,12 @@ func main() {
 		log.Fatalf("Unable to connect to the Hydra SDK because %s", err)
 	}
 
+	debug()
+
 	// Set up a router and some routes
 	r := mux.NewRouter()
-	r.HandleFunc("/", handleHome)
 	r.HandleFunc("/consent", handleConsent)
 	r.HandleFunc("/login", handleLogin)
-	r.HandleFunc("/callback", handleCallback)
 
 	// Set up a request logger, useful for debugging
 	n := negroni.New()
@@ -61,15 +61,13 @@ func main() {
 	http.ListenAndServe(":"+env.Getenv("PORT", "3000"), n)
 }
 
-// handles request at /home - a small page that let's you know what you can do in this app. Usually the first.
-// page a user sees.
-func handleHome(w http.ResponseWriter, _ *http.Request) {
-	var config = client.GetOAuth2Config()
-	config.RedirectURL = "http://localhost:4445/callback"
-	config.Scopes = []string{"offline", "openid"}
-
-	var authURL = client.GetOAuth2Config().AuthCodeURL(state) + "&nonce=" + state
-	renderTemplate(w, "home.html", authURL)
+func debug() {
+	clientApp, response, err := client.GetOAuth2Client("clientapp")
+	log.Println(clientApp)
+	log.Println(response)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // After pressing "click here", the Authorize Code flow is performed and the user is redirected to Hydra. Next, Hydra
@@ -195,29 +193,6 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// It's a get request, so let's render the template
 	renderTemplate(w, "login.html", consentRequestID)
-}
-
-// Once the user has given their consent, we will hit this endpoint. Again,
-// this is not something that would be included in a traditional consent app,
-// but we added it so you can see the data once the consent flow is done.
-func handleCallback(w http.ResponseWriter, r *http.Request) {
-	// in the real world you should check the state query parameter, but this is omitted for brevity reasons.
-
-	// Exchange the access code for an access (and optionally) a refresh token
-	token, err := client.GetOAuth2Config().Exchange(context.Background(), r.URL.Query().Get("code"))
-	if err != nil {
-		http.Error(w, errors.Wrap(err, "Could not exhange token").Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Render the output
-	renderTemplate(w, "callback.html", struct {
-		*oauth2.Token
-		IDToken interface{}
-	}{
-		Token:   token,
-		IDToken: token.Extra("id_token"),
-	})
 }
 
 // authenticated checks if our cookie store has a user stored and returns the
