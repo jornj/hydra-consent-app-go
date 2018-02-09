@@ -7,9 +7,9 @@ To run the example, first install Hydra, [dep](https://github.com/golang/dep)
 and this project:
 
 ```sh
-go get -u -d github.com/ory/hydra-consent-app-go
-cd $GOPATH/src/github.com/ory/hydra-consent-app-go
-dep ensure
+go get -u -d github.com/jornj/hydra-consent-app-go
+cd $GOPATH/src/github.com/jornj/hydra-consent-app-go
+dep ensure -v
 ```
 
 Next open a shell and:
