@@ -73,14 +73,14 @@ hydra clients create --skip-tls-verify \
 
 ```
 
-In a second console, run the consent app
+In a console, run the consent app
 
 ```sh
 cd consent
 go run consent.go
 ```
 
-In a third console, run the client app
+In another console, run the client app
 
 ```sh
 cd client
